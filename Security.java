@@ -34,11 +34,15 @@ public abstract class Security {
             return VISITOR;
         }
         int level = Integer.parseInt(levelString);
-        return switch (level) {
-            case 7980 -> OPERATOR;
-            case 6568 -> ADMIN;
-            case 8673 -> VISITOR;
-            default -> MEMBER;
-        };
+        switch (level) {
+            case 7980:
+                return OPERATOR;
+            case 6568:
+                return ADMIN;
+            case 8673:
+                return VISITOR;
+            default:
+                return MEMBER;
+        }
     }
 }

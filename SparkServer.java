@@ -82,15 +82,31 @@ public class SparkServer extends Thread {
             if (userName == null) {
                 continue;
             }
-            if (userName.equals(name)) {
+            if (userName.equals(name.toLowerCase())) {
                 user = userPair.getValue();
             }
         }
         return user;
     }
 
+    public void kickAll(User excludeUser){
+        ArrayList<User> removeUsers = new ArrayList<>();
+        for (Map.Entry<String, User> userPair : users.entrySet()) {
+            User removeUser = userPair.getValue();
+            if (!excludeUser.equals(removeUser)){
+                removeUser.sendPacket(new PacketDisconnect("Kicked by Admin"));
+                removeUser.shutdown();
+                removeUsers.add(removeUser);
+            }
+        }
+        for (User user: removeUsers){
+            users.remove(user.getUserId());
+        }
+        print("All user kicked excepted " + excludeUser.getUserName());
+    }
+
     public boolean hasUserByName(String name) {
-        return (getUserByName(name) != null);
+        return (getUserByName(name.toLowerCase()) != null);
     }
 
     void addUser(Socket socket) {

@@ -11,14 +11,12 @@ public class CommandKickAll extends Command {
             return false;
         }
         try {
-            for (String id : user.getServer().getUsers().keySet()) {
-                if (!(id.equals(user.getUserId()))) {
-                    user.getServer().removeUserById(id, "Kicked by Admin");
-                }
-            }
+            user.getServer().kickAll(user);
             user.sendLog("Kicked all user!");
             return true;
         } catch (Exception e) {
+            SparkServer.print("Error disconnecting all user: " + e.getMessage());
+            e.printStackTrace();
             return false;
         }
     }
