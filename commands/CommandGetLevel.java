@@ -14,11 +14,12 @@ public class CommandGetLevel extends Command {
             user.sendLog("Your security level: " + user.getSecurityLevel());
             return true;
         }
-        if (!user.getServer().hasUserByName(args[0])) {
-            user.sendLog("User " + args[0] + " is not online!");
+        String name = args[0].toLowerCase();
+        if (!user.getServer().hasUserByName(name)) {
+            user.sendLog("User " + name + " is not online!");
             return false;
         }
-        user.sendLog(args[0] + "'s security level: " + user.getServer().getUserByName(args[0]).getSecurityLevel());
+        user.sendLog(name + "'s security level: " + user.getServer().getUserByName(name).getSecurityLevel());
         return true;
     }
 }

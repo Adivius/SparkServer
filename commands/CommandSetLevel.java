@@ -14,8 +14,9 @@ public class CommandSetLevel extends Command {
             user.sendLog("Please enter a user and a level!");
             return false;
         }
-        if (!user.getServer().hasUserByName(args[0])) {
-            user.sendLog("User " + args[0] + " is not online!");
+        String name = args[0].toLowerCase();
+        if (!user.getServer().hasUserByName(name)) {
+            user.sendLog("User " + name + " is not online!");
             return false;
         }
         if (Security.isInvalidInt(args[1])) {
@@ -24,7 +25,7 @@ public class CommandSetLevel extends Command {
         }
 
         int level = Integer.parseInt(args[1]);
-        User change = user.getServer().getUserByName(args[0]);
+        User change = user.getServer().getUserByName(name);
 
         if (!hasPermission(user, level)) {
             notAllowed(user);
@@ -32,7 +33,7 @@ public class CommandSetLevel extends Command {
         }
         change.setSecurityLevel(level);
         change.sendLog("Your security level was set to: " + level);
-        user.sendLog("Security level of " + change.getUserName() + " was set to " + level);
+        user.sendLog("Security level of " + name + " was set to " + level);
         return true;
     }
 }

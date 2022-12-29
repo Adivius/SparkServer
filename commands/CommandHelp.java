@@ -14,8 +14,8 @@ public class CommandHelp extends Command {
         if (args.length == 0) {
             user.sendLog(CommandHandler.getHelp());
         } else {
-            if (!CommandHandler.commands.containsKey(args[0])) {
-                user.sendLog("Command " + args[0] + " was invalid!");
+            if (!CommandHandler.commands.containsKey(args[0].toLowerCase())) {
+                user.sendLog("Command " + args[0].toLowerCase() + " was invalid!");
                 return false;
             }
             user.sendLog(CommandHandler.commands.get(args[0]).USAGE);

@@ -14,11 +14,13 @@ public class CommandKick extends Command {
             user.sendLog("Please enter a user!");
             return false;
         }
-        if (!user.getServer().hasUserByName(args[0])) {
-            user.sendLog("User " + args[0] + " is not online!");
+        String name = args[0].toLowerCase();
+        if (!user.getServer().hasUserByName(name)) {
+            user.sendLog("User " + name + " is not online!");
             return false;
         }
-        user.getServer().removeUserById(user.getServer().getUserByName(args[0]).getUserId(), "Kicked by Admin");
+        user.getServer().removeUserById(user.getServer().getUserByName(name).getUserId(), "Kicked by Admin");
+        user.sendLog(name + " was kicked!");
         return false;
     }
 }
