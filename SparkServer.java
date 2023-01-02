@@ -1,6 +1,8 @@
+import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -8,7 +10,7 @@ import java.util.Map;
 public class SparkServer extends Thread {
 
     private final int port;
-    private final HashMap<String, User> users = new HashMap<>();
+    private final HashMap<String, UserConnection> users = new HashMap<>();
     private ServerSocket serverSocket;
 
     public SparkServer(int port) {
@@ -23,27 +25,29 @@ public class SparkServer extends Thread {
         try {
             serverSocket = new ServerSocket(port);
             CommandHandler.init();
+            DatabaseHandler.init();
             print("Chat ServerMain is listening on port " + port);
             while (!serverSocket.isClosed()) {
                 Socket socket = serverSocket.accept();
                 addUser(socket);
             }
         } catch (Exception e) {
+            SparkServer.print("Error in starting Server: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    public void broadcast(String message, User excludeUser, String sender) {
-        for (Map.Entry<String, User> userPair : users.entrySet()) {
-            if (userPair.getValue() != excludeUser) {
+    public void broadcast(String message, UserConnection excludeUserConnection, String sender) {
+        for (Map.Entry<String, UserConnection> userPair : users.entrySet()) {
+            if (userPair.getValue() != excludeUserConnection) {
                 userPair.getValue().sendMessage(message, sender);
             }
         }
     }
 
-    public void broadcast(Packet packet, User excludeUser) {
-        for (Map.Entry<String, User> userPair : users.entrySet()) {
-            if (userPair.getValue() != excludeUser) {
+    public void broadcast(Packet packet, UserConnection excludeUserConnection) {
+        for (Map.Entry<String, UserConnection> userPair : users.entrySet()) {
+            if (userPair.getValue() != excludeUserConnection) {
                 userPair.getValue().sendPacket(packet);
             }
         }
@@ -51,7 +55,7 @@ public class SparkServer extends Thread {
 
     public String getUserNames() {
         ArrayList<String> names = new ArrayList<>();
-        for (Map.Entry<String, User> userPair : users.entrySet()) {
+        for (Map.Entry<String, UserConnection> userPair : users.entrySet()) {
             String userName = userPair.getValue().getUserName();
             if (userName != null) {
                 names.add(userName);
@@ -65,48 +69,51 @@ public class SparkServer extends Thread {
     }
 
     public void removeUserById(String id, String reason) {
-        User removeUser = users.get(id);
-        if (removeUser.getUserName() != null) {
-            broadcast(new PacketLog(removeUser.getUserName() + " quit, " + (getUserCount() - 1) + " people are online"), removeUser);
-        }
-        removeUser.sendPacket(new PacketDisconnect(reason));
-        removeUser.shutdown();
-        print("User disconnected: " + id + ": " + reason);
+        UserConnection removeUserConnection = users.get(id);
+        removeUserConnection.sendPacket(new PacketDisconnect(reason));
+        removeUserConnection.shutdown();
+        print("UserConnection disconnected: " + id + ": " + reason);
         users.remove(id);
     }
 
-    public User getUserByName(String name) {
-        User user = null;
-        for (Map.Entry<String, User> userPair : users.entrySet()) {
+    public UserConnection getUserByName(String name) {
+        UserConnection userConnection = null;
+        for (Map.Entry<String, UserConnection> userPair : users.entrySet()) {
             String userName = userPair.getValue().getUserName();
             if (userName == null) {
                 continue;
             }
             if (userName.equals(name.toLowerCase())) {
-                user = userPair.getValue();
+                userConnection = userPair.getValue();
             }
         }
-        return user;
+        return userConnection;
     }
 
-    public void kickAll(User excludeUser){
-        ArrayList<User> removeUsers = new ArrayList<>();
-        for (Map.Entry<String, User> userPair : users.entrySet()) {
-            User removeUser = userPair.getValue();
-            if (!excludeUser.equals(removeUser)){
-                removeUser.sendPacket(new PacketDisconnect("Kicked by Admin"));
-                removeUser.shutdown();
-                removeUsers.add(removeUser);
+    public void kickAll(UserConnection excludeUserConnection){
+        ArrayList<UserConnection> removeUserConnections = new ArrayList<>();
+        for (Map.Entry<String, UserConnection> userPair : users.entrySet()) {
+            UserConnection removeUserConnection = userPair.getValue();
+            if (!excludeUserConnection.equals(removeUserConnection)){
+                removeUserConnection.sendPacket(new PacketDisconnect("Kicked by Admin"));
+                removeUserConnection.shutdown();
+                removeUserConnections.add(removeUserConnection);
             }
         }
-        for (User user: removeUsers){
-            users.remove(user.getUserId());
+        for (UserConnection userConnection : removeUserConnections){
+            users.remove(userConnection.getUserId());
         }
-        print("All user kicked excepted " + excludeUser.getUserName());
+        print("All user kicked excepted " + excludeUserConnection.getUserName());
     }
 
-    public boolean hasUserByName(String name) {
-        return (getUserByName(name.toLowerCase()) != null);
+    public boolean hasUserByName(String name){
+        try {
+            return DatabaseHandler.userExists(name.toLowerCase());
+        } catch (SQLException e) {
+            SparkServer.print("Error in getting user: " + e.getMessage());
+            e.printStackTrace();
+            return true;
+        }
     }
 
     void addUser(Socket socket) {
@@ -114,10 +121,10 @@ public class SparkServer extends Thread {
         String ip = String.valueOf(socket.getInetAddress()).replace("/", "");
         int port = socket.getPort();
         String id = ip + PacketIds.SEPARATOR + port;
-        User newUser = new User(socket, this, id, Security.VISITOR);
+        UserConnection newUserConnection = new UserConnection(socket, this, id);
         print("New user connected: " + id);
-        users.put(id, newUser);
-        newUser.start();
+        users.put(id, newUserConnection);
+        newUserConnection.start();
     }
 
     public void shutdown() {
@@ -133,7 +140,8 @@ public class SparkServer extends Thread {
         }
     }
 
-    public HashMap<String, User> getUsers() {
+    public HashMap<String, UserConnection> getUsers() {
         return users;
     }
+
 }

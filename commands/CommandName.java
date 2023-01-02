@@ -5,27 +5,27 @@ public class CommandName extends Command {
     }
 
     @Override
-    public boolean execute(User user, String[] args) {
-        if (!hasPermission(user, SECURITY_LEVEL)) {
-            notAllowed(user);
+    public boolean execute(UserConnection userConnection, String[] args) {
+        if (!hasPermission(userConnection, SECURITY_LEVEL)) {
+            notAllowed(userConnection);
             return false;
         }
         if (args.length == 0) {
-            user.sendLog("Your name: " + user.getUserName());
+            userConnection.sendLog("Your name: " + userConnection.getUserName());
             return false;
         }
         String newName = args[0].toLowerCase();
-        SparkServer server = user.getServer();
+        SparkServer server = userConnection.getServer();
         if (server.hasUserByName(newName)) {
-            user.sendLog("This name is occupied!");
+            userConnection.sendLog("This name is occupied!");
             return false;
         }
         if (Security.nameDenied(newName)) {
-            user.sendLog("This name is blocked!");
+            userConnection.sendLog("This name is blocked!");
             return false;
         }
-        server.broadcast(new PacketLog(user.getUserName() + "'s name was changed to " + newName), null);
-        user.setUserName(newName);
+        server.broadcast(new PacketLog(userConnection.getUserName() + "'s name was changed to " + newName), null);
+        userConnection.setUserName(newName);
         return true;
     }
 }

@@ -2,37 +2,31 @@ public class PacketConnect extends Packet {
 
     public String USERNAME;
 
-    public int LEVEL;
+    public String PW_HASH;
 
-    public PacketConnect(String userName) {
+    public PacketConnect(String userName, String pw_hash) {
         super(PacketIds.CONNECT);
         this.USERNAME = userName;
-        this.LEVEL = Security.VISITOR;
-    }
-
-    public PacketConnect(String userName, int level) {
-        super(PacketIds.CONNECT);
-        this.USERNAME = userName;
-        this.LEVEL = level;
+        this.PW_HASH = pw_hash;
     }
 
     public PacketConnect(String[] str) {
         super(PacketIds.CONNECT);
         if (str.length >= 3) {
             this.USERNAME = str[1];
-            this.LEVEL = Integer.parseInt(str[2]);
+            this.PW_HASH = str[2];
 
         } else if (str.length == 2) {
             this.USERNAME = str[1];
-            this.LEVEL = Security.VISITOR;
+            this.PW_HASH = null;
         } else {
             this.USERNAME = null;
-            this.LEVEL = Security.VISITOR;
+            this.PW_HASH = null;
         }
     }
 
     @Override
     public String encode() {
-        return PacketIds.CONNECT + PacketIds.SEPARATOR + USERNAME + PacketIds.SEPARATOR + LEVEL;
+        return PacketIds.CONNECT + PacketIds.SEPARATOR + USERNAME + PacketIds.SEPARATOR + PW_HASH;
     }
 }

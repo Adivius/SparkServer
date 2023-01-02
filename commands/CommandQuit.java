@@ -5,12 +5,12 @@ public class CommandQuit extends Command {
     }
 
     @Override
-    public boolean execute(User user, String[] args) {
-        if (!hasPermission(user, SECURITY_LEVEL)) {
-            notAllowed(user);
+    public boolean execute(UserConnection userConnection, String[] args) {
+        if (!hasPermission(userConnection, SECURITY_LEVEL)) {
+            notAllowed(userConnection);
             return false;
         }
-        user.getServer().removeUserById(user.getUserId(), "Disconnected");
+        userConnection.getServer().removeUserById(userConnection.getUserId(), "Disconnected");
         return true;
     }
 }

@@ -5,35 +5,35 @@ public class CommandSetLevel extends Command {
     }
 
     @Override
-    public boolean execute(User user, String[] args) {
-        if (!hasPermission(user, SECURITY_LEVEL)) {
-            notAllowed(user);
+    public boolean execute(UserConnection userConnection, String[] args) {
+        if (!hasPermission(userConnection, SECURITY_LEVEL)) {
+            notAllowed(userConnection);
             return false;
         }
         if (args.length < ARGS_LENGTH) {
-            user.sendLog("Please enter a user and a level!");
+            userConnection.sendLog("Please enter a userConnection and a level!");
             return false;
         }
         String name = args[0].toLowerCase();
-        if (!user.getServer().hasUserByName(name)) {
-            user.sendLog("User " + name + " is not online!");
+        if (!userConnection.getServer().hasUserByName(name)) {
+            userConnection.sendLog("UserConnection " + name + " is not online!");
             return false;
         }
         if (Security.isInvalidInt(args[1])) {
-            user.sendLog("Please enter a valid level!");
+            userConnection.sendLog("Please enter a valid level!");
             return false;
         }
 
         int level = Integer.parseInt(args[1]);
-        User change = user.getServer().getUserByName(name);
+        UserConnection change = userConnection.getServer().getUserByName(name);
 
-        if (!hasPermission(user, level)) {
-            notAllowed(user);
+        if (!hasPermission(userConnection, level)) {
+            notAllowed(userConnection);
             return false;
         }
         change.setSecurityLevel(level);
         change.sendLog("Your security level was set to: " + level);
-        user.sendLog("Security level of " + name + " was set to " + level);
+        userConnection.sendLog("Security level of " + name + " was set to " + level);
         return true;
     }
 }

@@ -5,21 +5,21 @@ public class CommandGetLevel extends Command {
     }
 
     @Override
-    public boolean execute(User user, String[] args) {
-        if (!hasPermission(user, SECURITY_LEVEL)) {
-            notAllowed(user);
+    public boolean execute(UserConnection userConnection, String[] args) {
+        if (!hasPermission(userConnection, SECURITY_LEVEL)) {
+            notAllowed(userConnection);
             return false;
         }
         if (args.length == 0) {
-            user.sendLog("Your security level: " + user.getSecurityLevel());
+            userConnection.sendLog("Your security level: " + userConnection.getSecurityLevel());
             return true;
         }
         String name = args[0].toLowerCase();
-        if (!user.getServer().hasUserByName(name)) {
-            user.sendLog("User " + name + " is not online!");
+        if (!userConnection.getServer().hasUserByName(name)) {
+            userConnection.sendLog("UserConnection " + name + " is not online!");
             return false;
         }
-        user.sendLog(name + "'s security level: " + user.getServer().getUserByName(name).getSecurityLevel());
+        userConnection.sendLog(name + "'s security level: " + userConnection.getServer().getUserByName(name).getSecurityLevel());
         return true;
     }
 }

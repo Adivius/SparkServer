@@ -5,17 +5,17 @@ public class CommandKickAll extends Command {
     }
 
     @Override
-    public boolean execute(User user, String[] args) {
-        if (!hasPermission(user, SECURITY_LEVEL)) {
-            notAllowed(user);
+    public boolean execute(UserConnection userConnection, String[] args) {
+        if (!hasPermission(userConnection, SECURITY_LEVEL)) {
+            notAllowed(userConnection);
             return false;
         }
         try {
-            user.getServer().kickAll(user);
-            user.sendLog("Kicked all user!");
+            userConnection.getServer().kickAll(userConnection);
+            userConnection.sendLog("Kicked all userConnection!");
             return true;
         } catch (Exception e) {
-            SparkServer.print("Error disconnecting all user: " + e.getMessage());
+            SparkServer.print("Error disconnecting all userConnection: " + e.getMessage());
             e.printStackTrace();
             return false;
         }

@@ -5,12 +5,12 @@ public class CommandStop extends Command {
     }
 
     @Override
-    public boolean execute(User user, String[] args) {
-        if (!hasPermission(user, SECURITY_LEVEL)) {
-            notAllowed(user);
+    public boolean execute(UserConnection userConnection, String[] args) {
+        if (!hasPermission(userConnection, SECURITY_LEVEL)) {
+            notAllowed(userConnection);
             return false;
         }
-        user.getServer().shutdown();
+        userConnection.getServer().shutdown();
         return true;
     }
 }

@@ -1,11 +1,15 @@
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+
 public abstract class Security {
 
     public static final int VISITOR = 0, MEMBER = 1, ADMIN = 2, OPERATOR = 3;
     public static final String[] FORBIDDEN_NAMES = {"system", "server", "operator", "admin", "penis", "console"};
     public static final int NAME_MAX_LENGTH = 12;
 
-    public static boolean hasPermission(User user, int minSecurityLevel) {
-        return user.getSecurityLevel() >= minSecurityLevel;
+    public static boolean hasPermission(UserConnection userConnection, int minSecurityLevel) {
+        return userConnection.getSecurityLevel() >= minSecurityLevel;
     }
 
     public static boolean isInvalidInt(String str) {
@@ -28,9 +32,9 @@ public abstract class Security {
         return out;
     }
 
-    public static int switchLevel(User user, String levelString) {
+    public static int switchLevel(UserConnection userConnection, String levelString) {
         if (isInvalidInt(levelString)) {
-            user.getServer().removeUserById(user.getUserId(), "Invalid level!");
+            userConnection.getServer().removeUserById(userConnection.getUserId(), "Invalid level!");
             return VISITOR;
         }
         int level = Integer.parseInt(levelString);
@@ -44,5 +48,27 @@ public abstract class Security {
             default:
                 return MEMBER;
         }
+    }
+
+    private static byte[] digest(byte[] input) {
+        MessageDigest md;
+        try {
+            md = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalArgumentException(e);
+        }
+        return md.digest(input);
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02x", b));
+        }
+        return sb.toString();
+    }
+
+    public static String hashMd5(String input) {
+        return bytesToHex(digest(input.getBytes(StandardCharsets.UTF_8)));
     }
 }

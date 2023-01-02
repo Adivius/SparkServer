@@ -3,25 +3,24 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 
-public class User extends Thread {
+public class UserConnection extends Thread {
 
     private final SparkServer server;
     private final Socket socket;
     private final String id;
     private PrintWriter writer;
     private BufferedReader reader;
-    private String userName = null;
-    private int securityLevel;
+    private User user;
     private String disconnectReason = null;
 
-    public User(Socket socket, SparkServer server, String id, int securityLevel) {
+    public UserConnection(Socket socket, SparkServer server, String id) {
         this.socket = socket;
         this.server = server;
         this.id = id;
-        this.securityLevel = securityLevel;
     }
 
     public void run() {
@@ -41,7 +40,7 @@ public class User extends Thread {
                 server.removeUserById(this.getUserId(), "Invalid connect!");
                 return;
             }
-            if (connectPacket.length == 1) {
+            if (connectPacket.length < 3) {
                 server.removeUserById(this.getUserId(), "Invalid name!");
                 return;
             }
@@ -50,22 +49,25 @@ public class User extends Thread {
                 server.removeUserById(this.getUserId(), "Name to long!");
                 return;
             }
-            if (server.hasUserByName(name)) {
-                server.removeUserById(this.getUserId(), "Name is occupied!");
-                return;
-            }
             if (Security.nameDenied(name)) {
                 server.removeUserById(this.getUserId(), "Name is blocked!");
                 return;
             }
-            int level = Security.MEMBER;
-            if (connectPacket.length > 2) {
-                level = Security.switchLevel(this, connectPacket[2]);
+
+            if (DatabaseHandler.userExists(name)){
+                if (!DatabaseHandler.checkUserPassword(new User(name, connectPacket[2]))){
+                    server.removeUserById(this.getUserId(), "Password was incorrect!");
+                    return;
+                }
+                this.user = DatabaseHandler.getUserByName(name);
+                sendLog("Welcome back, "+ server.getUserCount() + " people are online");
+            }else {
+                User user = new User(name, connectPacket[2]);
+                DatabaseHandler.registerUser(user);
+                this.user = user;
+                sendLog("Welcome " + getUserName() + ", " + server.getUserCount() + " people are online");
+                server.broadcast(new PacketLog("New user connected: " + getUserName()), this);
             }
-            setUserName(name);
-            setSecurityLevel(level);
-            sendLog("Welcome " + userName + ", " + server.getUserCount() + " people are online");
-            server.broadcast(new PacketLog("New user connected: " + userName), this);
             loop:
             while (!socket.isClosed()) {
                 if (!reader.ready() || !socket.isConnected()) {
@@ -99,7 +101,7 @@ public class User extends Thread {
                         if (!Security.hasPermission(this, Security.MEMBER)) {
                             continue;
                         }
-                        server.broadcast(packetMessage.MESSAGE, null, userName);
+                        server.broadcast(packetMessage.MESSAGE, null, getUserName());
                         break;
                     case PacketIds.DISCONNECT:
                         PacketDisconnect packetDisconnect = new PacketDisconnect(packet);
@@ -111,8 +113,8 @@ public class User extends Thread {
                 server.removeUserById(id, disconnectReason);
             }
 
-        } catch (IOException | ConcurrentModificationException ex) {
-            SparkServer.print("Error in User: " + ex.getMessage());
+        } catch (IOException | ConcurrentModificationException | SQLException ex) {
+            SparkServer.print("Error in UserConnection: " + ex.getMessage());
             ex.printStackTrace();
         }
     }
@@ -157,19 +159,22 @@ public class User extends Thread {
     }
 
     public int getSecurityLevel() {
-        return securityLevel;
+        return user.LEVEL;
     }
 
     public void setSecurityLevel(int securityLevel) {
-        this.securityLevel = securityLevel;
+        this.user.LEVEL = securityLevel;
     }
 
     public String getUserName() {
-        return userName;
+        if (user == null){
+            return null;
+        }
+        return user.NAME;
     }
 
     public void setUserName(String userName) {
-        this.userName = userName;
+        this.user.NAME = userName;
         sendPacket(new PacketName(userName));
     }
 }

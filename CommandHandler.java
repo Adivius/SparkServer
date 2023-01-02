@@ -22,7 +22,7 @@ public class CommandHandler {
         commands.put(command.NAME, command);
     }
 
-    public static void handleCommand(User sender, String commandName, String[] args) {
+    public static void handleCommand(UserConnection sender, String commandName, String[] args) {
         if (commands.containsKey(commandName)) {
             try {
                 commands.get(commandName).execute(sender, args);

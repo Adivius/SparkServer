@@ -12,13 +12,13 @@ public abstract class Command {
         this.SECURITY_LEVEL = securityLevel;
     }
 
-    public abstract boolean execute(User user, String[] args);
+    public abstract boolean execute(UserConnection userConnection, String[] args);
 
-    public boolean hasPermission(User user, int minSecurityLevel) {
-        return minSecurityLevel <= user.getSecurityLevel();
+    public boolean hasPermission(UserConnection userConnection, int minSecurityLevel) {
+        return minSecurityLevel <= userConnection.getSecurityLevel();
     }
 
-    public void notAllowed(User user) {
-        user.sendLog("You don't have the permission to do that!");
+    public void notAllowed(UserConnection userConnection) {
+        userConnection.sendLog("You don't have the permission to do that!");
     }
 }
