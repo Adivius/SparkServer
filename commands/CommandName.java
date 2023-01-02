@@ -24,7 +24,7 @@ public class CommandName extends Command {
             userConnection.sendLog("This name is blocked!");
             return false;
         }
-        server.broadcast(new PacketLog(userConnection.getUserName() + "'s name was changed to " + newName), null);
+        server.broadcastLog(userConnection.getUserName() + "'s name was changed to " + newName, null);
         userConnection.setUserName(newName);
         return true;
     }

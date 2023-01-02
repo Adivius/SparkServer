@@ -1,4 +1,3 @@
-import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -27,17 +26,23 @@ public class SparkServer extends Thread {
             CommandHandler.init();
             DatabaseHandler.init();
             print("Chat ServerMain is listening on port " + port);
+        } catch (SQLException | IOException e) {
+            print("Error starting server: " + e.getMessage());
+            e.printStackTrace();
+        }
+        try {
             while (!serverSocket.isClosed()) {
                 Socket socket = serverSocket.accept();
                 addUser(socket);
             }
-        } catch (Exception e) {
-            SparkServer.print("Error in starting Server: " + e.getMessage());
-            e.printStackTrace();
+        } catch (IOException ignored) {
+        } finally {
+            print("Server shut down!");
         }
     }
 
-    public void broadcast(String message, UserConnection excludeUserConnection, String sender) {
+    public void broadcastMessage(String message, UserConnection excludeUserConnection, String sender) {
+        DatabaseHandler.addMessage(new Message(message, sender, "general", System.currentTimeMillis()));
         for (Map.Entry<String, UserConnection> userPair : users.entrySet()) {
             if (userPair.getValue() != excludeUserConnection) {
                 userPair.getValue().sendMessage(message, sender);
@@ -45,10 +50,10 @@ public class SparkServer extends Thread {
         }
     }
 
-    public void broadcast(Packet packet, UserConnection excludeUserConnection) {
+    public void broadcastLog(String log, UserConnection excludeUserConnection) {
         for (Map.Entry<String, UserConnection> userPair : users.entrySet()) {
             if (userPair.getValue() != excludeUserConnection) {
-                userPair.getValue().sendPacket(packet);
+                userPair.getValue().sendPacket(new PacketLog(log));
             }
         }
     }
@@ -90,23 +95,23 @@ public class SparkServer extends Thread {
         return userConnection;
     }
 
-    public void kickAll(UserConnection excludeUserConnection){
+    public void kickAll(UserConnection excludeUserConnection) {
         ArrayList<UserConnection> removeUserConnections = new ArrayList<>();
         for (Map.Entry<String, UserConnection> userPair : users.entrySet()) {
             UserConnection removeUserConnection = userPair.getValue();
-            if (!excludeUserConnection.equals(removeUserConnection)){
+            if (!excludeUserConnection.equals(removeUserConnection)) {
                 removeUserConnection.sendPacket(new PacketDisconnect("Kicked by Admin"));
                 removeUserConnection.shutdown();
                 removeUserConnections.add(removeUserConnection);
             }
         }
-        for (UserConnection userConnection : removeUserConnections){
+        for (UserConnection userConnection : removeUserConnections) {
             users.remove(userConnection.getUserId());
         }
         print("All user kicked excepted " + excludeUserConnection.getUserName());
     }
 
-    public boolean hasUserByName(String name){
+    public boolean hasUserByName(String name) {
         try {
             return DatabaseHandler.userExists(name.toLowerCase());
         } catch (SQLException e) {
@@ -133,7 +138,8 @@ public class SparkServer extends Thread {
             try {
                 serverSocket.close();
             } catch (IOException e) {
-                throw new RuntimeException(e);
+                print("Error closing server: " + e.getMessage());
+                e.printStackTrace();
             }
             this.interrupt();
             System.exit(0);

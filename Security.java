@@ -5,7 +5,7 @@ import java.security.NoSuchAlgorithmException;
 public abstract class Security {
 
     public static final int VISITOR = 0, MEMBER = 1, ADMIN = 2, OPERATOR = 3;
-    public static final String[] FORBIDDEN_NAMES = {"system", "server", "operator", "admin", "penis", "console"};
+    public static final String[] FORBIDDEN_NAMES = {"system", "server", "operator", "admin", "unknown", "console", "general"};
     public static final int NAME_MAX_LENGTH = 12;
 
     public static boolean hasPermission(UserConnection userConnection, int minSecurityLevel) {
@@ -30,24 +30,6 @@ public abstract class Security {
             }
         }
         return out;
-    }
-
-    public static int switchLevel(UserConnection userConnection, String levelString) {
-        if (isInvalidInt(levelString)) {
-            userConnection.getServer().removeUserById(userConnection.getUserId(), "Invalid level!");
-            return VISITOR;
-        }
-        int level = Integer.parseInt(levelString);
-        switch (level) {
-            case 7980:
-                return OPERATOR;
-            case 6568:
-                return ADMIN;
-            case 8673:
-                return VISITOR;
-            default:
-                return MEMBER;
-        }
     }
 
     private static byte[] digest(byte[] input) {

@@ -49,6 +49,10 @@ public class UserConnection extends Thread {
                 server.removeUserById(this.getUserId(), "Name to long!");
                 return;
             }
+            if (name.isEmpty() || name.matches("\\s")){
+                server.removeUserById(this.getUserId(), "Invalid name!");
+                return;
+            }
             if (Security.nameDenied(name)) {
                 server.removeUserById(this.getUserId(), "Name is blocked!");
                 return;
@@ -66,8 +70,14 @@ public class UserConnection extends Thread {
                 DatabaseHandler.registerUser(user);
                 this.user = user;
                 sendLog("Welcome " + getUserName() + ", " + server.getUserCount() + " people are online");
-                server.broadcast(new PacketLog("New user connected: " + getUserName()), this);
+                server.broadcastLog("New user connected: " + getUserName(), this);
             }
+
+            loadMessages();
+
+            setUserName(name);
+
+
             loop:
             while (!socket.isClosed()) {
                 if (!reader.ready() || !socket.isConnected()) {
@@ -101,7 +111,7 @@ public class UserConnection extends Thread {
                         if (!Security.hasPermission(this, Security.MEMBER)) {
                             continue;
                         }
-                        server.broadcast(packetMessage.MESSAGE, null, getUserName());
+                        server.broadcastMessage(packetMessage.MESSAGE, null, getUserName());
                         break;
                     case PacketIds.DISCONNECT:
                         PacketDisconnect packetDisconnect = new PacketDisconnect(packet);
@@ -145,6 +155,10 @@ public class UserConnection extends Thread {
         String username = sender.isEmpty() ? "System" : sender;
         sendPacket(new PacketMessage(message, username, System.currentTimeMillis()));
     }
+    public void sendMessage(String message, String sender, long timestamp) {
+        String username = sender.isEmpty() ? "System" : sender;
+        sendPacket(new PacketMessage(message, username, timestamp));
+    }
 
     public void sendLog(String log) {
         sendPacket(new PacketLog(log));
@@ -176,5 +190,13 @@ public class UserConnection extends Thread {
     public void setUserName(String userName) {
         this.user.NAME = userName;
         sendPacket(new PacketName(userName));
+    }
+
+    public void loadMessages(){
+        for(Message message : DatabaseHandler.getMessages()){
+            if (message.RECIPIENT.equals("general") || message.RECIPIENT.equals(getUserName())){
+                sendMessage(message.MESSAGE, message.SENDER, message.TIMESTAMP);
+            }
+        }
     }
 }

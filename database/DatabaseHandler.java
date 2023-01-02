@@ -1,4 +1,5 @@
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -7,6 +8,7 @@ public class DatabaseHandler {
     public static String TABLE_NAME_USER = "user", TABLE_NAME_MESSAGES = "messages";
 
     public static void init() throws SQLException {
+        deleteTable(TABLE_NAME_MESSAGES);
         createTableUser();
         createTableMessages();
     }
@@ -156,4 +158,43 @@ public class DatabaseHandler {
     }
 
 
+    public static void addMessage(Message message) {
+        try {
+            Connection connection = getConnection();
+            String insertSQL = "insert into messages(message, sender, recipient, timestamp) values (?, ?, ?, ?)";
+            PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
+            preparedStatement.setString(1, message.MESSAGE);
+            preparedStatement.setString(2, message.SENDER.toLowerCase());
+            preparedStatement.setString(3, message.RECIPIENT.toLowerCase());
+            preparedStatement.setLong(4, message.TIMESTAMP);
+            preparedStatement.executeUpdate();
+            preparedStatement.close();
+            connection.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static ArrayList<Message> getMessages() {
+        try {
+            ArrayList<Message> out = new ArrayList<>();
+            Connection connection = getConnection();
+            String insertSQL = "select * from messages";
+            Statement statement = connection.createStatement();
+            ResultSet resultSet = statement.executeQuery(insertSQL);
+            while (resultSet.next()) {
+                String message = resultSet.getString("message");
+                String sender = resultSet.getString("sender");
+                String recipient = resultSet.getString("recipient");
+                long timestamp = resultSet.getLong("timestamp");
+                out.add(new Message(message, sender, recipient, timestamp));
+            }
+            resultSet.close();
+            statement.close();
+            connection.close();
+            return out;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 }
