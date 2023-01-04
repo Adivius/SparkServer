@@ -1,17 +1,9 @@
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Set;
 
 public class DatabaseHandler {
 
     public static String TABLE_NAME_USER = "user", TABLE_NAME_MESSAGES = "messages";
-
-    public static void init() throws SQLException {
-        deleteTable(TABLE_NAME_MESSAGES);
-        createTableUser();
-        createTableMessages();
-    }
 
     public static Connection getConnection() throws SQLException {
         return DriverManager.getConnection("jdbc:sqlite:SparkData.db");
@@ -24,6 +16,7 @@ public class DatabaseHandler {
                 "\t\"name\"\ttext,\n" +
                 "\t\"pw_hash\"\ttext,\n" +
                 "\t\"level\"\tinteger,\n" +
+                "\t\"banned\"\tinteger,\n" +
                 "\tprimary key(\"id\" autoincrement)\n" +
                 ");";
         connection.createStatement().execute(insertSQL);
@@ -51,19 +44,20 @@ public class DatabaseHandler {
         connection.close();
     }
 
-    public static void registerUser(User user) throws SQLException {
+    public static void addUserEntry(User user) throws SQLException {
         Connection connection = getConnection();
-        String insertSQL = "insert into user(name, pw_hash, level) values (?, ?, ?)";
+        String insertSQL = "insert into user(name, pw_hash, level, banned) values (?, ?, ?, ?)";
         PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
         preparedStatement.setString(1, user.NAME.toLowerCase());
         preparedStatement.setString(2, user.PW_HASH);
         preparedStatement.setInt(3, user.LEVEL);
+        preparedStatement.setInt(4, user.BANNED);
         preparedStatement.executeUpdate();
         preparedStatement.close();
         connection.close();
     }
 
-    public static void deleteUser(User user) throws SQLException {
+    public static void deleteUserEntry(User user) throws SQLException {
         Connection connection = getConnection();
         String insertSQL = "delete from user where name = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
@@ -73,12 +67,12 @@ public class DatabaseHandler {
         connection.close();
     }
 
-    public static boolean userExists(String user) throws SQLException {
+    public static boolean isUserEntryValidByName(String userName) throws SQLException {
         boolean out = false;
         Connection connection = getConnection();
         String insertSQL = "select * from user where name = ? ";
         PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
-        preparedStatement.setString(1, user.toLowerCase());
+        preparedStatement.setString(1, userName.toLowerCase());
         ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
             if (!resultSet.getString("name").isEmpty()) {
@@ -91,7 +85,7 @@ public class DatabaseHandler {
         return out;
     }
 
-    public static boolean checkUserPassword(User user) throws SQLException {
+    public static boolean isUserEntryPasswordCorrect(User user) throws SQLException {
         boolean out = false;
         Connection connection = getConnection();
         String insertSQL = "select * from user where name = ? ";
@@ -109,7 +103,7 @@ public class DatabaseHandler {
         return out;
     }
 
-    public static void updateName(User user, String newName) throws SQLException {
+    public static void setUserEntriesName(User user, String newName) throws SQLException {
         Connection connection = getConnection();
         String insertSQL = "update user set name = ? where name = ?";
         PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
@@ -120,25 +114,37 @@ public class DatabaseHandler {
         connection.close();
     }
 
-    public static Set<User> getUsers() throws SQLException {
-        Set<User> out = new HashSet<>();
+    public static void setUserEntriesLevel(User user, int level) throws SQLException {
+        Connection connection = getConnection();
+        String insertSQL = "update user set level = ? where name = ?";
+        PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
+        preparedStatement.setInt(1, level);
+        preparedStatement.setString(2, user.NAME.toLowerCase());
+        preparedStatement.executeUpdate();
+        preparedStatement.close();
+        connection.close();
+    }
+
+    public static ArrayList<User> getUserEntries() throws SQLException {
+        ArrayList<User> out = new ArrayList<>();
         Connection connection = getConnection();
         String insertSQL = "select * from user";
-        Statement statement = connection.createStatement();
-        ResultSet resultSet = statement.executeQuery(insertSQL);
+        PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
+        ResultSet resultSet = preparedStatement.executeQuery();
         while (resultSet.next()) {
             String userName = resultSet.getString("name");
             String pw_hash = resultSet.getString("pw_hash");
             int level = resultSet.getInt("level");
-            out.add(new User(userName, pw_hash, level));
+            int banned = resultSet.getInt("banned");
+            out.add(new User(userName, pw_hash, level, banned));
         }
         resultSet.close();
-        statement.close();
+        preparedStatement.close();
         connection.close();
         return out;
     }
 
-    public static User getUserByName(String userName) throws SQLException {
+    public static User getUserEntryByName(String userName) throws SQLException {
         User out = null;
         Connection connection = getConnection();
         String insertSQL = "select * from user where name = ? ";
@@ -149,7 +155,8 @@ public class DatabaseHandler {
             String name = resultSet.getString("name");
             String pw_hash = resultSet.getString("pw_hash");
             int level = resultSet.getInt("level");
-            out = new User(name, pw_hash, level);
+            int banned = resultSet.getInt("banned");
+            out = new User(name, pw_hash, level, banned);
         }
         preparedStatement.close();
         connection.close();
@@ -157,44 +164,80 @@ public class DatabaseHandler {
         return out;
     }
 
-
-    public static void addMessage(Message message) {
-        try {
-            Connection connection = getConnection();
-            String insertSQL = "insert into messages(message, sender, recipient, timestamp) values (?, ?, ?, ?)";
-            PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
-            preparedStatement.setString(1, message.MESSAGE);
-            preparedStatement.setString(2, message.SENDER.toLowerCase());
-            preparedStatement.setString(3, message.RECIPIENT.toLowerCase());
-            preparedStatement.setLong(4, message.TIMESTAMP);
-            preparedStatement.executeUpdate();
-            preparedStatement.close();
-            connection.close();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+    public static void addMessageEntry(Message message) throws SQLException {
+        Connection connection = getConnection();
+        String insertSQL = "insert into messages(message, sender, recipient, timestamp) values (?, ?, ?, ?)";
+        PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
+        preparedStatement.setString(1, message.MESSAGE);
+        preparedStatement.setString(2, message.SENDER.toLowerCase());
+        preparedStatement.setString(3, message.RECIPIENT.toLowerCase());
+        preparedStatement.setLong(4, message.TIMESTAMP);
+        preparedStatement.executeUpdate();
+        preparedStatement.close();
+        connection.close();
     }
 
-    public static ArrayList<Message> getMessages() {
-        try {
-            ArrayList<Message> out = new ArrayList<>();
-            Connection connection = getConnection();
-            String insertSQL = "select * from messages";
-            Statement statement = connection.createStatement();
-            ResultSet resultSet = statement.executeQuery(insertSQL);
-            while (resultSet.next()) {
-                String message = resultSet.getString("message");
-                String sender = resultSet.getString("sender");
-                String recipient = resultSet.getString("recipient");
-                long timestamp = resultSet.getLong("timestamp");
-                out.add(new Message(message, sender, recipient, timestamp));
-            }
-            resultSet.close();
-            statement.close();
-            connection.close();
-            return out;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+    public static ArrayList<Message> getMessageEntries() throws SQLException {
+        ArrayList<Message> out = new ArrayList<>();
+        Connection connection = getConnection();
+        String insertSQL = "select * from messages";
+        PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            String message = resultSet.getString("message");
+            String sender = resultSet.getString("sender");
+            String recipient = resultSet.getString("recipient");
+            long timestamp = resultSet.getLong("timestamp");
+            out.add(new Message(message, sender, recipient, timestamp));
         }
+        resultSet.close();
+        preparedStatement.close();
+        connection.close();
+        return out;
     }
+
+    public static int getUserEntriesCount() throws SQLException {
+        Connection connection = getConnection();
+        String insertSQL = "select count(id) from user";
+        PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        int out = resultSet.getInt(1);
+        resultSet.close();
+        preparedStatement.close();
+        connection.close();
+        return out;
+    }
+
+    public static int getMessageEntriesCount() throws SQLException {
+        Connection connection = getConnection();
+        String insertSQL = "select count(id) from messages";
+        PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        int out = resultSet.getInt(1);
+        resultSet.close();
+        preparedStatement.close();
+        connection.close();
+        return out;
+    }
+
+    public static ArrayList<Message> getMessageEntriesFromName(String userName) throws SQLException {
+        ArrayList<Message> out = new ArrayList<>();
+        Connection connection = getConnection();
+        String insertSQL = "select * from messages where recipient = ? or recipient = 'general'";
+        PreparedStatement preparedStatement = connection.prepareStatement(insertSQL);
+        preparedStatement.setString(1, userName);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            String message = resultSet.getString("message");
+            String sender = resultSet.getString("sender");
+            String recipient = resultSet.getString("recipient");
+            long timestamp = resultSet.getLong("timestamp");
+            out.add(new Message(message, sender, recipient, timestamp));
+        }
+        resultSet.close();
+        preparedStatement.close();
+        connection.close();
+        return out;
+    }
+
 }

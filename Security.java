@@ -7,9 +7,10 @@ public abstract class Security {
     public static final int VISITOR = 0, MEMBER = 1, ADMIN = 2, OPERATOR = 3;
     public static final String[] FORBIDDEN_NAMES = {"system", "server", "operator", "admin", "unknown", "console", "general"};
     public static final int NAME_MAX_LENGTH = 12;
+    public static final String STANDARD_RECIPIENT = "general";
 
     public static boolean hasPermission(UserConnection userConnection, int minSecurityLevel) {
-        return userConnection.getSecurityLevel() >= minSecurityLevel;
+        return userConnection.getUser().LEVEL >= minSecurityLevel;
     }
 
     public static boolean isInvalidInt(String str) {
@@ -31,6 +32,19 @@ public abstract class Security {
         }
         return out;
     }
+
+    public static boolean isNameAllowed(String name) {
+        if (name.length() > NAME_MAX_LENGTH) {
+            return false;
+        }
+        for (String forbiddenName : FORBIDDEN_NAMES) {
+            if (name.toLowerCase().contains(forbiddenName)) {
+                return false;
+            }
+        }
+        return StandardCharsets.US_ASCII.newEncoder().canEncode(name);
+    }
+
 
     private static byte[] digest(byte[] input) {
         MessageDigest md;

@@ -3,9 +3,9 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.ConcurrentModificationException;
+import java.util.Objects;
 
 public class UserConnection extends Thread {
 
@@ -14,8 +14,9 @@ public class UserConnection extends Thread {
     private final String id;
     private PrintWriter writer;
     private BufferedReader reader;
-    private User user;
     private String disconnectReason = null;
+    private boolean connected = false;
+    private String connectionName = null;
 
     public UserConnection(Socket socket, SparkServer server, String id) {
         this.socket = socket;
@@ -30,68 +31,62 @@ public class UserConnection extends Thread {
         try {
             reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             writer = new PrintWriter(socket.getOutputStream(), true);
-            String response;
+            startDisconnectTimer();
+            String connectionString;
             do {
-                response = reader.readLine();
-            } while (response == null);
-            System.out.println(response);
-            String[] connectPacket = response.split(PacketIds.SEPARATOR);
-            if (!connectPacket[0].equals(Integer.toString(PacketIds.CONNECT))) {
+                connectionString = reader.readLine();
+            } while (connectionString == null && !socket.isClosed());
+            connected = true;
+            String[] connectPacket = connectionString.split(PacketIds.SEPARATOR);
+            if (!isConnectionValid(connectPacket)) {
                 server.removeUserById(this.getUserId(), "Invalid connect!");
                 return;
             }
-            if (connectPacket.length < 3) {
-                server.removeUserById(this.getUserId(), "Invalid name!");
-                return;
-            }
-            String name = connectPacket[1].toLowerCase();
-            if (name.length() > Security.NAME_MAX_LENGTH) {
-                server.removeUserById(this.getUserId(), "Name to long!");
-                return;
-            }
-            if (name.isEmpty() || name.matches("\\s")){
-                server.removeUserById(this.getUserId(), "Invalid name!");
-                return;
-            }
-            if (Security.nameDenied(name)) {
-                server.removeUserById(this.getUserId(), "Name is blocked!");
-                return;
-            }
+            String name = connectPacket[1];
+            String pw_hash = connectPacket[2];
+            User user = new User(name, pw_hash);
 
-            if (DatabaseHandler.userExists(name)){
-                if (!DatabaseHandler.checkUserPassword(new User(name, connectPacket[2]))){
-                    server.removeUserById(this.getUserId(), "Password was incorrect!");
-                    return;
+            if (DataHandler.isUserInvalid(user)) {
+                if (Security.isNameAllowed(name)) {
+                    DataHandler.registerUser(user);
+                    sendLog("Welcome " + name + ", " + server.getConnectionCount() + " people are online");
+                    SparkServer.print("New user registered: " + name);
+                    server.broadcastLog("New user registered: " + name, null);
+                } else {
+                    server.removeUserById(this.getUserId(), "Name is invalid!");
                 }
-                this.user = DatabaseHandler.getUserByName(name);
-                sendLog("Welcome back, "+ server.getUserCount() + " people are online");
-            }else {
-                User user = new User(name, connectPacket[2]);
-                DatabaseHandler.registerUser(user);
-                this.user = user;
-                sendLog("Welcome " + getUserName() + ", " + server.getUserCount() + " people are online");
-                server.broadcastLog("New user connected: " + getUserName(), this);
+
+            } else {
+                if (DataHandler.isLoginCorrect(user)) {
+                    if (Objects.requireNonNull(DataHandler.getUserByName(name.toLowerCase())).BANNED != 0) {
+                        server.removeUserById(this.getUserId(), "Banned!");
+                    } else {
+                        sendLog("Welcome back, " + server.getConnectionCount() + " people are online");
+                        SparkServer.print("User logged in: " + name);
+                    }
+
+                } else {
+                    server.removeUserById(this.getUserId(), "Password was incorrect!");
+                }
             }
 
+            connectionName = name;
+            sendPacket(new PacketName(name));
             loadMessages();
-
-            setUserName(name);
-
 
             loop:
             while (!socket.isClosed()) {
                 if (!reader.ready() || !socket.isConnected()) {
                     continue;
                 }
-                response = reader.readLine();
-                SparkServer.print(response);
-                if (response == null) {
-                    SparkServer.print("Response was null");
+                String inputString = reader.readLine();
+                if (inputString == null) {
                     continue;
                 }
-                String[] packet = response.split(PacketIds.SEPARATOR);
+                String[] packet = inputString.split(PacketIds.SEPARATOR);
                 if (Security.isInvalidInt(packet[0])) {
                     SparkServer.print("Invalid packet ID: " + packet[0]);
+                    server.removeUserById(this.getUserId(), "Invalid packet!");
                     continue;
                 }
                 int packetID = Integer.parseInt(packet[0]);
@@ -105,13 +100,13 @@ public class UserConnection extends Thread {
                             String[] commands = packetMessage.MESSAGE.split(" ");
                             String command = commands[0].toLowerCase().substring(1);
                             String[] args = Arrays.copyOfRange(commands, 1, commands.length);
-                            CommandHandler.handleCommand(this, command, args);
+                            //CommandHandler.handleCommand(this, command, args);
                             break;
                         }
                         if (!Security.hasPermission(this, Security.MEMBER)) {
                             continue;
                         }
-                        server.broadcastMessage(packetMessage.MESSAGE, null, getUserName());
+                        server.broadcastMessage(packetMessage.MESSAGE, connectionName, packetMessage.RECIPIENT);
                         break;
                     case PacketIds.DISCONNECT:
                         PacketDisconnect packetDisconnect = new PacketDisconnect(packet);
@@ -123,7 +118,8 @@ public class UserConnection extends Thread {
                 server.removeUserById(id, disconnectReason);
             }
 
-        } catch (IOException | ConcurrentModificationException | SQLException ex) {
+
+        } catch (IOException | ConcurrentModificationException ex) {
             SparkServer.print("Error in UserConnection: " + ex.getMessage());
             ex.printStackTrace();
         }
@@ -131,19 +127,30 @@ public class UserConnection extends Thread {
 
     public void shutdown() {
         try {
+            this.interrupt();
             if (!socket.isClosed()) {
                 socket.close();
             }
             reader.close();
             writer.close();
-            this.interrupt();
         } catch (IOException e) {
             SparkServer.print("Error in shutdown user: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    void send(String bytes) {
+    private boolean isConnectionValid(String[] connectPacket) {
+        String packet = String.join("", connectPacket);
+        if (!connectPacket[0].equals(Integer.toString(PacketIds.CONNECT))) {
+            return false;
+        }
+        if (connectPacket.length < 3) {
+            return false;
+        }
+        return !packet.matches("\\s");
+    }
+
+    private void send(String bytes) {
         writer.println(bytes);
     }
 
@@ -151,13 +158,8 @@ public class UserConnection extends Thread {
         send(packet.encode());
     }
 
-    public void sendMessage(String message, String sender) {
-        String username = sender.isEmpty() ? "System" : sender;
-        sendPacket(new PacketMessage(message, username, System.currentTimeMillis()));
-    }
-    public void sendMessage(String message, String sender, long timestamp) {
-        String username = sender.isEmpty() ? "System" : sender;
-        sendPacket(new PacketMessage(message, username, timestamp));
+    public void sendMessage(Message message) {
+        sendPacket(new PacketMessage(message.MESSAGE, message.SENDER, message.TIMESTAMP, message.RECIPIENT));
     }
 
     public void sendLog(String log) {
@@ -172,31 +174,35 @@ public class UserConnection extends Thread {
         return server;
     }
 
-    public int getSecurityLevel() {
-        return user.LEVEL;
+    public User getUser() {
+        return DataHandler.getUserByName(connectionName);
     }
 
-    public void setSecurityLevel(int securityLevel) {
-        this.user.LEVEL = securityLevel;
-    }
-
-    public String getUserName() {
-        if (user == null){
-            return null;
+    public void loadMessages() {
+        for (Message message : DataHandler.getMessagesFromName(connectionName)) {
+            sendMessage(message);
         }
-        return user.NAME;
     }
 
-    public void setUserName(String userName) {
-        this.user.NAME = userName;
-        sendPacket(new PacketName(userName));
-    }
+    private void startDisconnectTimer() {
+        class TimerThread extends Thread {
+            final UserConnection userConnection;
 
-    public void loadMessages(){
-        for(Message message : DatabaseHandler.getMessages()){
-            if (message.RECIPIENT.equals("general") || message.RECIPIENT.equals(getUserName())){
-                sendMessage(message.MESSAGE, message.SENDER, message.TIMESTAMP);
+            public TimerThread(UserConnection userConnection) {
+                this.userConnection = userConnection;
+            }
+
+            public void run() {
+                try {
+                    sleep(2000);
+                    if (!userConnection.connected) {
+                        userConnection.server.removeUserById(userConnection.getUserId(), "Timeout");
+                    }
+                } catch (InterruptedException e) {
+                    userConnection.server.removeUserById(userConnection.getUserId(), "Timeout");
+                }
             }
         }
+        new TimerThread(this).start();
     }
 }
